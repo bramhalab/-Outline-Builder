@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Outline Builder — Study Notes Tool</title>
+
+<!-- KaTeX CSS and JS for Math Rendering -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+
+<!-- Libraries for PDF and Image Exports -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <button class="btn hamburger-btn" id="hamburgerBtn" title="Menu" aria-label="Toggle sidebar">&#9776;</button>
+  <span class="app-title">📚 Outline Builder</span>
+  <button class="btn" id="exaKeyBtn" title="Set up Exa API key for future AI search features">🔑 Exa Key</button>
+  <button class="btn" id="mercuryKeyBtn" title="Set up Inception/Mercury API key for AI Auto-Format">🧠 Mercury Key</button>
+  <button class="btn" id="darkModeBtn">&#127769; Dark Mode</button>
+</div>
+
+<!-- Dynamic Text Selection Highlight Popper -->
+<div id="highlightToolbar">
+  <div class="color-dot" style="background:#ffe28a;" data-color="#ffe28a"></div>
+  <div class="color-dot" style="background:#ffb3ba;" data-color="#ffb3ba"></div>
+  <div class="color-dot" style="background:#baffc9;" data-color="#baffc9"></div>
+  <div class="color-dot" style="background:#bae1ff;" data-color="#bae1ff"></div>
+  <button class="clear-hl-btn">✕ Clear</button>
+</div>
+
+<!-- Async Export Status Toast Block -->
+<div id="exportToast"><div class="spinner"></div><span id="toastMsg">Exporting document in background...</span></div>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<div class="layout">
+  <div class="sidebar">
+    <h3>Saved Outlines</h3>
+    <div id="docList"></div>
+    <div class="sidebar-actions">
+      <button class="btn primary" id="newDocBtn">+ New Outline</button>
+    </div>
+  </div>
+
+  <div class="main" id="mainArea"></div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
