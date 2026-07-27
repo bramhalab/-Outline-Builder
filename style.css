@@ -258,8 +258,14 @@
   .control-group-buttons { display:none; margin-left:auto; gap:4px; align-items:center; padding-left: 10px; }
   .node-header:hover .control-group-buttons, .leaf:hover .control-group-buttons { display:flex; }
   
-  .edit-trigger-btn { border: none; background: transparent; cursor: pointer; font-size: 0.85rem; padding: 2px; border-radius: 4px; opacity: 0.7; transition: opacity 0.2s; }
-  .edit-trigger-btn:hover { opacity: 1; background: rgba(0,0,0,0.05); }
+  .edit-trigger-btn, .explain-more-btn, .ai-example-btn { border: none; background: transparent; cursor: pointer; font-size: 0.85rem; padding: 2px; border-radius: 4px; opacity: 0.7; transition: opacity 0.2s; }
+  .edit-trigger-btn:hover, .explain-more-btn:hover, .ai-example-btn:hover { opacity: 1; background: rgba(0,0,0,0.05); }
+  .explain-more-btn:disabled, .ai-example-btn:disabled { opacity: 0.4; cursor: wait; }
+
+  @media (max-width:760px){
+    /* Touch devices have no hover — reveal action icons at reduced opacity always. */
+    .control-group-buttons { display:flex; opacity:.55; }
+  }
 
   /* Selection Toolbar Popup */
   #highlightToolbar { position: absolute; z-index: 1000; display: none; background: #fff; border: 1px solid #ccc; box-shadow: 0 2px 8px rgba(0,0,0,0.15); padding: 4px; border-radius: 6px; gap: 4px; }
@@ -318,3 +324,25 @@
     .doc-item .del-x, .doc-item .move-folder-x,
     .folder-header .folder-menu-x{ opacity:.6; }
   }
+
+/* AI Answer Modal (Smart Search Fallback, and any future AI-result display) */
+#aiAnswerBackdrop{
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200;
+  align-items:center; justify-content:center; padding:20px;
+}
+#aiAnswerBackdrop.open{ display:flex; }
+#aiAnswerBox{
+  background:var(--bg-alt); border-radius:12px; max-width:560px; width:100%;
+  max-height:80vh; overflow-y:auto; padding:24px; position:relative; box-shadow:0 10px 40px rgba(0,0,0,0.3);
+}
+#aiAnswerCloseBtn{
+  position:absolute; top:14px; right:14px; border:none; background:transparent;
+  font-size:1rem; cursor:pointer; color:var(--text-muted); padding:4px 8px; border-radius:6px;
+}
+#aiAnswerCloseBtn:hover{ background:var(--accent-soft); color:var(--accent); }
+#aiAnswerTitle{ font-family:var(--font-serif); font-size:1.05rem; margin:0 30px 12px 0; }
+#aiAnswerBody{ font-size:.92rem; line-height:1.6; white-space:pre-wrap; }
+#aiAnswerBody .ai-answer-sources{ margin-top:14px; padding-top:10px; border-top:1px solid var(--border); font-size:.78rem; color:var(--text-muted); }
+#aiAnswerBody .ai-answer-sources a{ color:var(--accent); }
+
+.no-results button.tool-btn{ display:inline-block; }
