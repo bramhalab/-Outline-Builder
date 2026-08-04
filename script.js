@@ -2,8 +2,6 @@
   const STORAGE_INDEX_KEY = 'outline_index';
   const STORAGE_FOLDERS_KEY = 'outline_folders';
   const STORAGE_COLLAPSED_KEY = 'outline_collapsed_folders';
-  const STORAGE_EXA_KEY = 'exa_api_key';
-  const STORAGE_MERCURY_KEY = 'mercury_api_key';
   let index = [];        
   let folders = [];
   let collapsedFolders = [];
@@ -14,8 +12,6 @@
   const mainArea = document.getElementById('mainArea');
   const docList = document.getElementById('docList');
   const darkBtn = document.getElementById('darkModeBtn');
-  const exaKeyBtn = document.getElementById('exaKeyBtn');
-  const mercuryKeyBtn = document.getElementById('mercuryKeyBtn');
   const newDocBtn = document.getElementById('newDocBtn');
   const hamburgerBtn = document.getElementById('hamburgerBtn');
   const sidebarOverlay = document.getElementById('sidebarOverlay');
@@ -38,23 +34,6 @@
     exportToast.style.display = 'none';
   }
 
-  // ---------- AI answer modal (used by Smart Search Fallback) ----------
-  const aiAnswerBackdrop = document.getElementById('aiAnswerBackdrop');
-  const aiAnswerTitle = document.getElementById('aiAnswerTitle');
-  const aiAnswerBody = document.getElementById('aiAnswerBody');
-  function openAiAnswerModal(title, bodyHtml){
-    aiAnswerTitle.textContent = title;
-    aiAnswerBody.innerHTML = bodyHtml;
-    aiAnswerBackdrop.classList.add('open');
-  }
-  function closeAiAnswerModal(){
-    aiAnswerBackdrop.classList.remove('open');
-  }
-  document.getElementById('aiAnswerCloseBtn').addEventListener('click', closeAiAnswerModal);
-  aiAnswerBackdrop.addEventListener('click', function(e){
-    if(e.target === aiAnswerBackdrop) closeAiAnswerModal();
-  });
-
   function storageGet(key){
     try{ return localStorage.getItem(key); }catch(e){ return null; }
   }
@@ -63,182 +42,6 @@
   }
   function storageDelete(key){
     try{ localStorage.removeItem(key); }catch(e){ }
-  }
-
-  // ---------- Exa API key (for future AI-search features) ----------
-  // Stored ONLY in this browser's localStorage — never hardcoded in the
-  // source files, so it's safe even though this repo/site is public.
-  function getExaApiKey(){
-    return storageGet(STORAGE_EXA_KEY) || '';
-  }
-  function setExaApiKey(key){
-    if(key){ storageSet(STORAGE_EXA_KEY, key); }
-    else{ storageDelete(STORAGE_EXA_KEY); }
-  }
-  function promptExaApiKey(){
-    const existing = getExaApiKey();
-    const masked = existing ? (existing.slice(0, 4) + '••••••••' + existing.slice(-4)) : null;
-    const message = masked
-      ? 'Exa API key is set (' + masked + ').\n\nPaste a new key to replace it, or type CLEAR to remove it:'
-      : 'Paste your Exa API key (from dashboard.exa.ai).\n\nThis is saved only in this browser — it is never written into the app\'s files.';
-    const input = prompt(message, '');
-    if(input === null) return;
-    const trimmed = input.trim();
-    if(trimmed.toUpperCase() === 'CLEAR'){
-      setExaApiKey(null);
-      alert('Exa API key removed from this browser.');
-    } else if(trimmed){
-      setExaApiKey(trimmed);
-      alert('Exa API key saved in this browser. (AI-search features using it will be added next.)');
-    }
-  }
-  exaKeyBtn.addEventListener('click', promptExaApiKey);
-
-  // ---------- Mercury (Inception Labs) API key + AI Auto-Format ----------
-  // Same rule as Exa: key lives ONLY in this browser's localStorage, never in source files.
-  function getMercuryApiKey(){
-    return storageGet(STORAGE_MERCURY_KEY) || '';
-  }
-  function setMercuryApiKey(key){
-    if(key){ storageSet(STORAGE_MERCURY_KEY, key); }
-    else{ storageDelete(STORAGE_MERCURY_KEY); }
-  }
-  function promptMercuryApiKey(){
-    const existing = getMercuryApiKey();
-    const masked = existing ? (existing.slice(0, 4) + '••••••••' + existing.slice(-4)) : null;
-    const message = masked
-      ? 'Mercury (Inception Labs) API key is set (' + masked + ').\n\nPaste a new key to replace it, or type CLEAR to remove it:'
-      : 'Paste your Inception Labs API key (from dashboard, "API Keys" section).\n\nThis is saved only in this browser — it is never written into the app\'s files.';
-    const input = prompt(message, '');
-    if(input === null) return;
-    const trimmed = input.trim();
-    if(trimmed.toUpperCase() === 'CLEAR'){
-      setMercuryApiKey(null);
-      alert('Mercury API key removed from this browser.');
-    } else if(trimmed){
-      setMercuryApiKey(trimmed);
-      alert('Mercury API key saved in this browser. You can now use "🧠 AI Auto-Format" inside the outline editor.');
-    }
-  }
-  mercuryKeyBtn.addEventListener('click', promptMercuryApiKey);
-
-  // ---------- Shared helpers: call Mercury (LLM) and Exa (web search) ----------
-  async function callMercury(systemPrompt, userContent, maxTokens){
-    const apiKey = getMercuryApiKey();
-    if(!apiKey){ throw new Error('Pehle "🧠 Mercury Key" button se apna Inception/Mercury API key set karo.'); }
-    const response = await fetch('https://api.inceptionlabs.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + apiKey
-      },
-      body: JSON.stringify({
-        model: 'mercury-2',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userContent }
-        ],
-        max_tokens: maxTokens || 2000,
-        temperature: 0.2
-      })
-    });
-    if(!response.ok){
-      const errText = await response.text().catch(function(){ return ''; });
-      throw new Error('Mercury API error ' + response.status + ': ' + errText.slice(0, 300));
-    }
-    const data = await response.json();
-    const output = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-    if(!output) throw new Error('Mercury se khaali response mila.');
-    return output.trim();
-  }
-
-  async function callExaSearch(query, numResults){
-    const apiKey = getExaApiKey();
-    if(!apiKey){ throw new Error('Pehle "🔑 Exa Key" button se apna Exa API key set karo.'); }
-    const response = await fetch('https://api.exa.ai/search', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey
-      },
-      body: JSON.stringify({
-        query: query,
-        type: 'auto',
-        numResults: numResults || 4,
-        contents: { text: true }
-      })
-    });
-    if(!response.ok){
-      const errText = await response.text().catch(function(){ return ''; });
-      throw new Error('Exa API error ' + response.status + ': ' + errText.slice(0, 300));
-    }
-    const data = await response.json();
-    return (data.results || []).map(function(r){
-      return { title: r.title || '', url: r.url || '', text: (r.text || '').slice(0, 3000) };
-    });
-  }
-
-  const AI_FORMAT_SYSTEM_PROMPT =
-    'You are a formatting assistant for a study-outline app. Convert the user\'s raw/messy notes into ' +
-    'the app\'s plain-text outline syntax. Rules:\n' +
-    '1. Use "## " at the start of a line for a top-level heading (chapter/unit/topic title).\n' +
-    '2. Use "-" for every other point. Indent nested/sub-points by adding 2 extra spaces per level ' +
-    'before the "-" (e.g. "- Point" then "  - Sub-point" then "    - Sub-sub-point").\n' +
-    '3. If the notes contain (or would be clearer as) a comparison/tabular data, output a markdown table: ' +
-    'a header row like "| Basis | A | B |", then a separator row "|---|---|---|", then data rows in the same format.\n' +
-    '4. Wrap key terms/labels in **double asterisks** for bold emphasis where it aids scanning.\n' +
-    '5. Do NOT invent new facts, figures, or content — only reorganize/reformat what the user gave you.\n' +
-    '6. Output ONLY the reformatted outline text — no commentary, no explanations, no markdown code fences.';
-
-  function friendlyAiErrorHint(err){
-    if(err instanceof TypeError){
-      return '\n\n(Ye CORS/network error jaisa lag raha hai — browser se API direct call block ho sakta hai. Internet check kar lo, agar phir bhi fail ho to server-side proxy chahiye hoga.)';
-    }
-    return '';
-  }
-
-  async function runAiAutoFormat(){
-    const textarea = document.getElementById('rawInput');
-    if(!textarea || !textarea.value.trim()) return;
-    const btn = document.getElementById('aiFormatBtn');
-    const originalLabel = btn ? btn.textContent : '';
-    if(btn){ btn.textContent = '⏳ Formatting...'; btn.disabled = true; }
-    try{
-      const output = await callMercury(AI_FORMAT_SYSTEM_PROMPT, textarea.value, 4000);
-      textarea.value = output;
-    }catch(err){
-      alert('AI Auto-Format fail ho gaya:\n' + err.message + friendlyAiErrorHint(err));
-    }finally{
-      if(btn){ btn.textContent = originalLabel; btn.disabled = false; }
-    }
-  }
-
-  // Topic -> full outline: Exa researches the topic, Mercury writes it in the app's outline syntax.
-  async function runAiGenerateOutline(){
-    const topic = prompt('Kis topic pe outline banana hai? Jitna specific likhoge utna accurate banega.\n(e.g. "ICAI CA Foundation Business Economics Ch.1 Nature and Scope")');
-    if(!topic || !topic.trim()) return;
-    const btn = document.getElementById('aiGenerateBtn');
-    const originalLabel = btn ? btn.textContent : '';
-    if(btn){ btn.textContent = '⏳ Researching…'; btn.disabled = true; }
-    try{
-      const results = await callExaSearch(topic.trim(), 4);
-      if(results.length === 0) throw new Error('Exa ko is topic pe kuch nahi mila. Query thoda specific karke try karo.');
-      const research = results.map(function(r, i){ return 'Source ' + (i+1) + ':\n' + r.text; }).join('\n\n---\n\n');
-      const genPrompt = AI_FORMAT_SYSTEM_PROMPT +
-        '\n\nYou are given raw research text gathered from the web on a topic. Write a clear, well-organized ' +
-        'study outline covering the key points, using the syntax rules above. Do not include URLs or source ' +
-        'references in the output.';
-      const output = await callMercury(genPrompt, 'Topic: ' + topic.trim() + '\n\nResearch:\n' + research, 4000);
-
-      const nameInput = document.getElementById('nameInput');
-      if(nameInput && !nameInput.value.trim()) nameInput.value = topic.trim();
-      document.getElementById('rawInput').value = output;
-      alert('Outline draft ban gaya! Content ko ICAI module se zaroor verify kar lena — AI research se banaya gaya hai, galtiyan ho sakti hain.');
-    }catch(err){
-      alert('AI Generate fail ho gaya:\n' + err.message + friendlyAiErrorHint(err));
-    }finally{
-      if(btn){ btn.textContent = originalLabel; btn.disabled = false; }
-    }
   }
 
   function loadIndex(){
@@ -496,8 +299,6 @@
         '</div>' +
         
         '<div class="smart-tools-wrapper">' +
-          '<button class="btn tool-btn" id="aiGenerateBtn">🪄 Generate with AI (topic)</button>' +
-          '<button class="btn tool-btn" id="aiFormatBtn">🧠 AI Auto-Format</button>' +
           '<button class="btn tool-btn" id="fixSpacingBtn">✨ Auto-Fix Outline Spacing</button>' +
           '<button class="btn tool-btn" id="addSpacesBtn">➕ Add +2 Spaces Global</button>' +
         '</div>' +
@@ -529,8 +330,6 @@
       renderEditor();
     });
 
-    document.getElementById('aiGenerateBtn').addEventListener('click', runAiGenerateOutline);
-    document.getElementById('aiFormatBtn').addEventListener('click', runAiAutoFormat);
     document.getElementById('fixSpacingBtn').addEventListener('click', runAutoSpacingFix);
     document.getElementById('addSpacesBtn').addEventListener('click', runAddGlobalSpaces);
   }
@@ -641,44 +440,6 @@
     saveDoc(currentId, currentDoc.title, currentDoc.raw);
   }
 
-  // Inserts new sub-point lines (as "- " bullets) right after the matched line, one level
-  // deeper than it. Used by "Explain more" / "Add example" AI features. Same occurrence-aware
-  // matching as updateRawTextOnEdit, and skips table blocks the same way.
-  function insertChildLinesAfter(originalText, occurrence, newLineTexts){
-    if(!currentDoc || !currentDoc.raw || !newLineTexts || newLineTexts.length === 0) return;
-    const targetOccurrence = occurrence || 1;
-    let lines = currentDoc.raw.split('\n');
-    let matchCounter = 0;
-    let li = 0;
-    while(li < lines.length){
-      const line = lines[li];
-      if(line.trim() === ''){ li++; continue; }
-      if(isTableRowLine(line) && li + 1 < lines.length && isTableSeparatorLine(lines[li+1])){
-        li += 2;
-        while(li < lines.length && isTableRowLine(lines[li])) li++;
-        continue;
-      }
-      let lineValue = line.replace(/^#{1,6}\s*/, '').replace(/^-\s*/, '').trim();
-      if (lineValue === originalText.trim()) {
-        matchCounter++;
-        if(matchCounter === targetOccurrence){
-          const isHeading = /^#{1,6}\s*/.test(line.trim());
-          const leadingSpaces = (line.match(/^(\s*)/) || ['',''])[1].length;
-          let parentLevel;
-          if(isHeading){ parentLevel = 1; }
-          else{ parentLevel = Math.floor(leadingSpaces / 2) + 1; if(parentLevel < 2) parentLevel = 2; }
-          const childIndent = ' '.repeat(parentLevel * 2);
-          const insertion = newLineTexts.map(function(t){ return childIndent + '- ' + t; });
-          lines.splice.apply(lines, [li + 1, 0].concat(insertion));
-          break;
-        }
-      }
-      li++;
-    }
-    currentDoc.raw = lines.join('\n');
-    saveDoc(currentId, currentDoc.title, currentDoc.raw);
-  }
-
   // Full re-render of the outline area (fresh HTML, keys, highlights, math, listeners).
   // Shared by initial doc-open and by AI features that mutate currentDoc.raw in place.
   function rerenderOutlineRoot(){
@@ -747,9 +508,7 @@
         '<h1 class="unit-title">' + escapeHtml(currentDoc.title) + '</h1>' +
         '<div id="outlineRoot"></div>' +
       '</div>' +
-      '<div class="no-results" id="noResults">No matches found in this outline.<br>' +
-        '<button class="btn tool-btn" id="searchWebFallbackBtn" style="margin-top:8px;">🔍 Search the web instead? (Exa + AI)</button>' +
-      '</div>';
+      '<div class="no-results" id="noResults">No matches found in this outline.</div>';
 
     const outlineRoot = rerenderOutlineRoot();
 
@@ -929,77 +688,6 @@
         popper.style.display = 'flex';
       }
     });
-
-    // Shared setup for the "Explain more" / "Add example" AI buttons: figures out which
-    // line was clicked (text + occurrence, matching the data-hl-key scheme), runs an Exa
-    // search for context, asks Mercury to produce short sub-point text, then inserts it
-    // as new child bullet(s) under the clicked line and re-renders.
-    function wireAiChildInsertButton(selector, buildSearchQuery, buildPrompt, maxTokens, parseOutputToLines){
-      rootElement.querySelectorAll(selector).forEach(btn => {
-        btn.addEventListener('click', async function(e){
-          e.stopPropagation();
-          const headerOrLeaf = btn.closest('.node-header') || btn.closest('.leaf');
-          const textTitleNode = headerOrLeaf.querySelector('.node-title') || headerOrLeaf;
-          const key = headerOrLeaf.getAttribute('data-hl-key');
-          const hashIdx = key ? key.lastIndexOf('#') : -1;
-          const occurrence = hashIdx > -1 ? (parseInt(key.slice(hashIdx + 1), 10) || 1) : 1;
-          const rawMatchText = nodeToMarkdownText(textTitleNode).trim();
-          const plainText = rawMatchText.replace(/\*\*/g, '');
-          if(!plainText) return;
-
-          const originalIcon = btn.textContent;
-          btn.textContent = '⏳';
-          btn.disabled = true;
-          try{
-            const searchQuery = buildSearchQuery(plainText);
-            const results = await callExaSearch(searchQuery, 3);
-            if(results.length === 0) throw new Error('Web par is point ke liye kuch nahi mila.');
-            const research = results.map(function(r, i){ return 'Source ' + (i+1) + ': ' + r.text; }).join('\n\n');
-            const output = await callMercury(buildPrompt(plainText), 'Point: ' + plainText + '\n\nResearch:\n' + research, maxTokens);
-            const newLines = parseOutputToLines(output);
-            if(newLines.length === 0) throw new Error('AI se koi usable content nahi mila.');
-
-            insertChildLinesAfter(rawMatchText, occurrence, newLines);
-            rerenderOutlineRoot();
-          } catch(err){
-            alert('Fail ho gaya:\n' + err.message + friendlyAiErrorHint(err));
-            btn.textContent = originalIcon;
-            btn.disabled = false;
-          }
-        });
-      });
-    }
-
-    wireAiChildInsertButton(
-      '.explain-more-btn',
-      function(pointText){ return (currentDoc && currentDoc.title ? currentDoc.title + ' - ' : '') + pointText; },
-      function(){
-        return 'You explain/expand a single study-note point using the given research text. ' +
-          'Write 2-4 short, clear sub-points that add useful explanation, examples, or context — plain language, exam-relevant. ' +
-          'Output ONLY the new sub-point lines, one per line, no bullets/dashes/numbering, no headers, no commentary.';
-      },
-      800,
-      function(output){
-        return output.split('\n').map(function(l){ return l.replace(/^[-•*\d.\s]+/, '').trim(); }).filter(Boolean);
-      }
-    );
-
-    wireAiChildInsertButton(
-      '.ai-example-btn',
-      function(pointText){ return pointText + ' example'; },
-      function(){
-        return 'You write ONE short, concrete illustrative example or case relevant to the given study point, ' +
-          'grounded in the research text. Output EXACTLY one line, starting with "Illustration: ", nothing else — ' +
-          'no commentary, no multiple examples, no markdown.';
-      },
-      300,
-      function(output){
-        let line = output.split('\n')[0].trim();
-        if(!line) return [];
-        if(!/^illustration\s*:/i.test(line)) line = 'Illustration: ' + line;
-        return [line];
-      }
-    );
 
     rootElement.querySelectorAll('.edit-trigger-btn').forEach(btn => {
       btn.addEventListener('click', function(e){
@@ -1537,8 +1225,6 @@
     let html = '';
     const stack = []; 
     const utilityActionButtonsHtml = '<div class="control-group-buttons">' +
-      '<button class="explain-more-btn" title="Explain more (AI)">🔍</button>' +
-      '<button class="ai-example-btn" title="Add example (AI)">💡</button>' +
       '<button class="edit-trigger-btn" title="Edit Point">📝</button>' +
     '</div>';
     
@@ -1695,34 +1381,6 @@
       resultCount.textContent = matchCount ? (matchCount + ' match' + (matchCount === 1 ? '' : 'es') + ' found') : '';
     }
     searchInput.addEventListener('input', handleSearch);
-
-    const searchWebFallbackBtn = document.getElementById('searchWebFallbackBtn');
-    if(searchWebFallbackBtn){
-      searchWebFallbackBtn.addEventListener('click', async function(){
-        const q = searchInput.value.trim();
-        if(!q) return;
-        const originalLabel = searchWebFallbackBtn.textContent;
-        searchWebFallbackBtn.textContent = '⏳ Searching web…';
-        searchWebFallbackBtn.disabled = true;
-        try{
-          const results = await callExaSearch(q, 4);
-          if(results.length === 0) throw new Error('Web par bhi kuch nahi mila is query ke liye.');
-          const research = results.map(function(r, i){ return 'Source ' + (i+1) + ': ' + r.text; }).join('\n\n');
-          const answerPrompt = 'Answer the user\'s query clearly and concisely using ONLY the given research text. ' +
-            'Write 3-6 short sentences or bullet points. Do not include raw URLs inline in the answer text.';
-          const answer = await callMercury(answerPrompt, 'Query: ' + q + '\n\nResearch:\n' + research, 600);
-          const sourcesHtml = '<div class="ai-answer-sources">Sources: ' +
-            results.map(function(r){ return '<a href="' + escapeAttr(r.url) + '" target="_blank" rel="noopener">' + escapeHtml(r.title || r.url) + '</a>'; }).join(' · ') +
-            '</div>';
-          openAiAnswerModal('🔍 ' + q, escapeHtml(answer) + sourcesHtml);
-        }catch(err){
-          alert('Web search fail ho gaya:\n' + err.message + friendlyAiErrorHint(err));
-        }finally{
-          searchWebFallbackBtn.textContent = originalLabel;
-          searchWebFallbackBtn.disabled = false;
-        }
-      });
-    }
   }
 
   darkBtn.addEventListener('click', function(){
